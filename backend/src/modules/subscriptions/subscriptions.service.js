@@ -34,6 +34,10 @@ class SubscriptionsService {
   async deletePackage(id) {
     return await subscriptionsRepository.deletePackage(id);
   }
+
+  async updatePackage(id, data) {
+    return await subscriptionsRepository.updatePackage(id, data);
+  }
 }
 
 export default new SubscriptionsService();

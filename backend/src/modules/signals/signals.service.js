@@ -19,6 +19,20 @@ class SignalsService {
     socketService.emit('new_signal', saved);
     return saved;
   }
+
+  async createManualSignal(data) {
+    const saved = await signalsRepository.create({
+      ...data,
+      source: 'ADMIN-MANUAL',
+      status: 'ACTIVE'
+    });
+    socketService.emit('new_signal', saved);
+    return saved;
+  }
+
+  async deleteSignal(id) {
+    return await signalsRepository.delete(id);
+  }
 }
 
 export default new SignalsService();

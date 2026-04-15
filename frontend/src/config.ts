@@ -12,6 +12,9 @@ export const getBaseUrl = () => {
     return 'http://localhost:4000';
 };
 
+export const getApiUrl = () => `${getBaseUrl()}/api/v1`;
+export const getSocketUrl = getBaseUrl;
+
 export const API_URL = getBaseUrl();
 export const SOCKET_URL = getBaseUrl();
 

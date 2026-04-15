@@ -5,19 +5,25 @@ import { useSignalStore } from '@/store/useSignalStore';
 import { PrimeLogo } from '@/components/PrimeLogo';
 import {
    Send, Trash2, CheckCircle, RefreshCcw, LayoutDashboard,
-   PlusCircle, Users, Activity, ShieldAlert, BadgeCheck, XCircle, Menu, X, ChevronRight
+   PlusCircle, Users, Activity, ShieldAlert, BadgeCheck, XCircle, Menu, X, ChevronRight, Crown,
+   Edit3, Lock, Unlock, Zap, Trash, Save
 } from 'lucide-react';
 import axios from 'axios';
 import { MarketOverviewBar } from '@/components/MarketOverviewBar';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getApiUrl } from '@/config';
 
 export default function AdminDashboard() {
+   const { signals } = useSignalStore();
    const [tab, setTab] = useState('signals');
    const [users, setUsers] = useState<any[]>([]);
    const [packages, setPackages] = useState<any[]>([]);
    const [loading, setLoading] = useState(false);
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+   // Modal/Edit States
+   const [editingUser, setEditingUser] = useState<any>(null);
+   const [editingPackage, setEditingPackage] = useState<any>(null);
 
    const [newSignal, setNewSignal] = useState({
       symbol: '', type: 'BUY', entry: '', sl: '', targets: '', market: 'NSE'
@@ -50,6 +56,31 @@ export default function AdminDashboard() {
       setLoading(false);
    };
 
+   // --- User Handlers ---
+   const handleDeleteUser = async (id: string) => {
+      if (!confirm('Are you sure you want to delete this user?')) return;
+      try {
+         await axios.delete(`${getApiUrl()}/admin/users/${id}`);
+         fetchUsers();
+      } catch (err) { console.error('Delete user error'); }
+   };
+
+   const handleToggleBan = async (id: string) => {
+      try {
+         await axios.post(`${getApiUrl()}/admin/users/${id}/ban`);
+         fetchUsers();
+      } catch (err) { console.error('Toggle ban error'); }
+   };
+
+   const handleUpdateUser = async () => {
+      try {
+         await axios.put(`${getApiUrl()}/admin/users/${editingUser._id}`, editingUser);
+         setEditingUser(null);
+         fetchUsers();
+      } catch (err) { console.error('Update user error'); }
+   };
+
+   // --- Package Handlers ---
    const createPackage = async () => {
       try {
          const payload = {
@@ -64,13 +95,31 @@ export default function AdminDashboard() {
       } catch (err) { console.error('Package creation failed'); }
    };
 
+   const handleUpdatePackage = async () => {
+      try {
+         const payload = {
+            ...editingPackage,
+            price: parseFloat(editingPackage.price),
+            durationInDays: parseInt(editingPackage.durationInDays),
+            features: typeof editingPackage.features === 'string' 
+               ? editingPackage.features.split(',').map((f: string) => f.trim()) 
+               : editingPackage.features
+         };
+         await axios.put(`${getApiUrl()}/admin/packages/${editingPackage._id}`, payload);
+         setEditingPackage(null);
+         fetchPackages();
+      } catch (err) { console.error('Update package error'); }
+   };
+
    const deletePackage = async (id: string) => {
+      if (!confirm('Delete this package?')) return;
       try {
          await axios.delete(`${getApiUrl()}/admin/packages/${id}`);
          fetchPackages();
       } catch (err) { console.error('Delete package error'); }
    };
 
+   // --- Signal Handlers ---
    const createSignal = async () => {
       if (!newSignal.symbol || !newSignal.entry) return;
       try {
@@ -99,7 +148,7 @@ export default function AdminDashboard() {
    };
 
    return (
-      <div className="min-h-screen bg-[#020202] text-white flex flex-col lg:flex-row">
+      <div className="min-h-screen bg-[#020202] text-white flex flex-col lg:flex-row font-outfit">
          <MarketOverviewBar />
 
          <header className="lg:hidden fixed top-0 w-full h-28 bg-[#0b0b0f]/90 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6 z-[60]">
@@ -201,7 +250,7 @@ export default function AdminDashboard() {
                               </thead>
                               <tbody className="divide-y divide-white/5 font-bold">
                                  {users.map(u => (
-                                    <tr key={u._id} className="hover:bg-white/[0.01] transition-colors">
+                                    <tr key={u._id} className={`hover:bg-white/[0.01] transition-colors ${u.isBanned ? 'opacity-50' : ''}`}>
                                        <td className="p-8">
                                           <div className="flex items-center gap-4">
                                              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-black">{u.name[0]}</div>
@@ -214,7 +263,13 @@ export default function AdminDashboard() {
                                        <td className="p-8"><span className="text-[10px] px-3 py-1 bg-white/5 rounded-lg border border-white/10 uppercase tracking-widest">{u.subscription.plan}</span></td>
                                        <td className="p-8 text-[10px] uppercase text-zinc-400">{u.role}</td>
                                        <td className="p-8 text-right">
-                                          <button className="p-2 text-zinc-600 hover:text-red-500 transition-colors"><ShieldAlert size={20} /></button>
+                                          <div className="flex items-center justify-end gap-2">
+                                             <button onClick={() => handleToggleBan(u._id)} className={`p-2 transition-colors ${u.isBanned ? 'text-red-500' : 'text-zinc-600 hover:text-amber-500'}`} title={u.isBanned ? 'Unban' : 'Ban'}>
+                                                {u.isBanned ? <Lock size={20} /> : <Unlock size={20} />}
+                                             </button>
+                                             <button onClick={() => setEditingUser(u)} className="p-2 text-zinc-600 hover:text-blue-500 transition-colors"><Edit3 size={20} /></button>
+                                             <button onClick={() => handleDeleteUser(u._id)} className="p-2 text-zinc-600 hover:text-red-500 transition-colors"><Trash size={20} /></button>
+                                          </div>
                                        </td>
                                     </tr>
                                  ))}
@@ -245,15 +300,18 @@ export default function AdminDashboard() {
 
                         <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                            {packages.map(p => (
-                              <div key={p._id} className="premium-card p-8 bg-white/[0.01] border-white/5 flex flex-col justify-between">
+                              <div key={p._id} className="premium-card p-8 bg-white/[0.01] border-white/5 flex flex-col justify-between hover:bg-white/[0.02] transition-all">
                                  <div>
                                     <div className="flex justify-between items-start mb-6">
-                                       <span className="text-[10px] font-black uppercase tracking-[3px] text-amber-500">{p.badge}</span>
-                                       <button onClick={() => deletePackage(p._id)} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                       <span className="text-[10px] font-black uppercase tracking-[3px] text-amber-500">{p.badge || 'PACK'}</span>
+                                       <div className="flex gap-2">
+                                          <button onClick={() => setEditingPackage(p)} className="text-zinc-700 hover:text-blue-500 transition-colors"><Edit3 size={16} /></button>
+                                          <button onClick={() => deletePackage(p._id)} className="text-zinc-700 hover:text-red-500 transition-colors"><Trash size={16} /></button>
+                                       </div>
                                     </div>
                                     <h4 className="text-2xl font-black uppercase tracking-tight mb-2">{p.name}</h4>
                                     <p className="text-3xl font-black mb-6">₹{p.price}<span className="text-xs text-zinc-500"> / {p.durationInDays}D</span></p>
-                                    <div className="space-y-3 pb-8">
+                                    <div className="space-y-3 pb-2">
                                        {p.features?.map((f: string, i: number) => (
                                           <div key={i} className="flex items-center gap-3 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                                              <CheckCircle size={12} className="text-amber-500" /> {f}
@@ -269,6 +327,60 @@ export default function AdminDashboard() {
                )}
             </div>
          </main>
+
+         {/* --- MODALS --- */}
+         <AnimatePresence>
+            {editingUser && (
+               <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingUser(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+                  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md premium-card p-8 bg-[#0b0b0f] border-white/10">
+                     <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 italic">Update <span className="text-amber-500">Registry</span></h3>
+                     <div className="space-y-6">
+                        <div className="space-y-2">
+                           <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Full Name</label>
+                           <input value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold" />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Plan Type</label>
+                           <select value={editingUser.subscription.plan} onChange={e => setEditingUser({ ...editingUser, subscription: { ...editingUser.subscription, plan: e.target.value } })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold appearance-none">
+                              <option value="FREE">FREE</option>
+                              <option value="VIP">VIP</option>
+                              <option value="INSTITUTIONAL">INSTITUTIONAL</option>
+                           </select>
+                        </div>
+                        <div className="flex gap-4 pt-4">
+                           <button onClick={() => setEditingUser(null)} className="flex-1 p-4 rounded-xl font-bold uppercase text-[10px] tracking-widest bg-white/5 border border-white/10 text-zinc-400">Cancel</button>
+                           <button onClick={handleUpdateUser} className="flex-1 p-4 rounded-xl font-bold uppercase text-[10px] tracking-widest bg-amber-500 text-black flex items-center justify-center gap-2">
+                              <Save size={16} /> Save Changes
+                           </button>
+                        </div>
+                     </div>
+                  </motion.div>
+               </div>
+            )}
+
+            {editingPackage && (
+               <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingPackage(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+                  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md premium-card p-8 bg-[#0b0b0f] border-white/10">
+                     <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 italic">Edit <span className="text-amber-500">Package</span></h3>
+                     <div className="space-y-4">
+                        <input value={editingPackage.name} onChange={e => setEditingPackage({ ...editingPackage, name: e.target.value })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold shadow-inner" placeholder="Name" />
+                        <input value={editingPackage.price} onChange={e => setEditingPackage({ ...editingPackage, price: e.target.value })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold" placeholder="Price" />
+                        <input value={editingPackage.durationInDays} onChange={e => setEditingPackage({ ...editingPackage, durationInDays: e.target.value })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold" placeholder="Duration" />
+                        <textarea value={editingPackage.features} onChange={e => setEditingPackage({ ...editingPackage, features: e.target.value })} className="w-full bg-black border border-white/10 p-4 rounded-xl text-white font-bold h-32" placeholder="Features" />
+                        
+                        <div className="flex gap-4 pt-4">
+                           <button onClick={() => setEditingPackage(null)} className="flex-1 p-4 rounded-xl font-bold uppercase text-[10px] tracking-widest bg-white/5 border border-white/10 text-zinc-400">Discard</button>
+                           <button onClick={handleUpdatePackage} className="flex-1 p-4 rounded-xl font-bold uppercase text-[10px] tracking-widest bg-blue-600 text-white flex items-center justify-center gap-2">
+                              <CheckCircle size={16} /> Commit
+                           </button>
+                        </div>
+                     </div>
+                  </motion.div>
+               </div>
+            )}
+         </AnimatePresence>
       </div>
    );
 }

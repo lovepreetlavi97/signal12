@@ -1,0 +1,142 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { MarketOverviewBar } from '@/components/MarketOverviewBar';
+import { Crown, CheckCircle, Zap, ShieldCheck, ArrowRight, Activity, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import { getApiUrl } from '@/config';
+import Link from 'next/link';
+
+export default function PlansPage() {
+    const [packages, setPackages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    useEffect(() => {
+        const fetchPackages = async () => {
+            try {
+                const res = await axios.get(`${getApiUrl()}/subscriptions/packages`);
+                setPackages(res.data);
+            } catch (err) {
+                console.error('Failed to fetch packages');
+            }
+            setLoading(false);
+        };
+        fetchPackages();
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-[#020202] text-white selection:bg-amber-500/30">
+            <MarketOverviewBar 
+                onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                isMobileMenuOpen={isMobileMenuOpen} 
+            />
+
+            <main className="max-w-7xl mx-auto pt-40 pb-24 px-6 relative">
+                {/* Background Decorations */}
+                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+                <div className="text-center space-y-6 mb-24 relative z-10">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-flex items-center gap-3 bg-white/[0.03] border border-white/5 px-6 py-2 rounded-full backdrop-blur-md mb-4"
+                    >
+                        <Crown size={14} className="text-amber-500" />
+                        <span className="text-[10px] font-black uppercase tracking-[4px] text-amber-500">Elite Memberships</span>
+                    </motion.div>
+                    
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-6xl lg:text-8xl font-black uppercase tracking-tighter leading-none"
+                    >
+                        Institutional <span className="gold-gradient italic">Access</span>
+                    </motion.h1>
+                    
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="max-w-2xl mx-auto text-zinc-500 text-lg font-medium leading-relaxed"
+                    >
+                        Precision intelligence for global markets. Choose your professional clearance level and unlock real-time synthesized data flow.
+                    </motion.p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10">
+                    {loading ? (
+                        Array(3).fill(0).map((_, i) => (
+                            <div key={i} className="premium-card h-[600px] bg-white/[0.02] animate-pulse rounded-3xl" />
+                        ))
+                    ) : (
+                        packages.map((pkg, idx) => (
+                            <motion.div
+                                key={pkg._id}
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                className="group relative flex flex-col premium-card p-10 bg-white/[0.01] border-white/5 hover:border-amber-500/20 hover:bg-white/[0.02] transition-all duration-500 rounded-[2.5rem] overflow-hidden"
+                            >
+                                {/* Hover Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-amber-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                <div className="mb-12 relative z-10">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-500 group-hover:scale-110 transition-transform">
+                                            {idx === 0 ? <Zap size={24} /> : idx === 1 ? <Crown size={24} /> : <ShieldCheck size={24} />}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-600 group-hover:text-amber-500 transition-colors">
+                                            {pkg.badge || 'Professional'}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-3xl font-black uppercase tracking-tight mb-4">{pkg.name}</h3>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-5xl font-black tracking-tighter">₹{pkg.price}</span>
+                                        <span className="text-zinc-600 text-sm font-bold uppercase tracking-widest italic">/ {pkg.durationInDays} Days</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-5 mb-14 flex-1 relative z-10">
+                                    <p className="text-[10px] font-black uppercase tracking-[4px] text-zinc-700 mb-6">Cleared Features</p>
+                                    {pkg.features?.map((feature: string, i: number) => (
+                                        <div key={i} className="flex items-center gap-4 text-sm font-bold text-zinc-400 group-hover:text-zinc-300 transition-colors capitalize">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-amber-500/40" />
+                                            {feature}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button className="w-full py-6 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-amber-500 group-hover:text-black group-hover:border-amber-500 transition-all duration-500 flex items-center justify-center gap-3 relative z-10 overflow-hidden group/btn">
+                                    <span className="text-xs font-black uppercase tracking-[4px] relative z-10">Initialize Activation</span>
+                                    <ArrowRight size={18} className="relative z-10 group-hover/btn:translate-x-2 transition-transform" />
+                                </button>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+
+                <div className="mt-32 text-center relative z-10">
+                    <div className="inline-block p-1 rounded-2xl bg-white/[0.02] border border-white/5">
+                        <div className="px-8 py-6 rounded-xl bg-black flex flex-col md:flex-row items-center gap-8">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-500/10 text-blue-500 rounded-lg">
+                                    <Activity size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-[10px] font-black uppercase tracking-[2px] text-zinc-500">Live Node Status</p>
+                                    <p className="text-sm font-bold text-white tracking-tight">Latency: <span className="text-emerald-500">24ms</span></p>
+                                </div>
+                            </div>
+                            <div className="h-8 w-px bg-white/10 hidden md:block" />
+                            <p className="text-xs font-medium text-zinc-400 max-w-sm">Secure transactions protected by institutional-grade encryption protocols.</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+}

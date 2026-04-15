@@ -52,6 +52,7 @@ export const MarketOverviewBar = ({ onMenuToggle, isMobileMenuOpen }: { onMenuTo
           <div className="hidden lg:flex items-center gap-6 pr-6 border-r border-white/5">
              <Link href="/" className={`text-[10px] font-black uppercase tracking-[3px] transition-colors ${pathname === '/' ? 'text-amber-500' : 'text-zinc-500 hover:text-white'}`}>Terminal</Link>
              <Link href="/history" className={`text-[10px] font-black uppercase tracking-[3px] transition-colors ${pathname === '/history' ? 'text-amber-500' : 'text-zinc-500 hover:text-white'}`}>History</Link>
+             <Link href="/plans" className={`text-[10px] font-black uppercase tracking-[3px] transition-colors ${pathname === '/plans' ? 'text-amber-500' : 'text-zinc-500 hover:text-white'}`}>Plans</Link>
           </div>
 
           <Link href="/profile" className="flex items-center gap-4 group cursor-pointer lg:flex hidden">

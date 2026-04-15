@@ -18,6 +18,12 @@ class SubscriptionsController {
     return { status: 'ok', message: 'Package deleted' };
   }
 
+  async updatePackage(request, reply) {
+    const { id } = request.params;
+    const pkg = await subscriptionsService.updatePackage(id, request.body);
+    return pkg;
+  }
+
   // User handlers
   async getPackages(request, reply) {
     const packages = await subscriptionsService.listPackages(false);
