@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Allow your phone's IP for development resources
-  experimental: {
-    allowedDevOrigins: ['192.168.1.112', 'localhost:3000'],
-  },
+  experimental: {},
   async rewrites() {
     return [
       {

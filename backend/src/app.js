@@ -4,6 +4,7 @@ import errorMiddleware from './middlewares/errorMiddleware.js';
 import signalsRoutes from './modules/signals/signals.routes.js';
 import subscriptionRoutes from './modules/subscriptions/subscriptions.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
+import marketDataRoutes from './modules/marketData/marketData.routes.js';
 // Import other routes as they are created
 // import authRoutes from './modules/auth/auth.routes.js';
 
@@ -31,6 +32,7 @@ const createApp = async () => {
   await fastify.register(signalsRoutes, { prefix: '/api/v1/signals' });
   await fastify.register(subscriptionRoutes, { prefix: '/api/v1/subscriptions' });
   await fastify.register(adminRoutes, { prefix: '/api/v1/admin' });
+  await fastify.register(marketDataRoutes, { prefix: '/api/v1/market' });
   
   // Health check
   fastify.get('/health', async () => ({ status: 'UP', timestamp: new Date().toISOString() }));

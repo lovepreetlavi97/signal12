@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Header Integration Test</title>
+    <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0b0f;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 112px;
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 70;
+            display: flex;
+            align-items: center;
+            overflow: visible;
+        }
+
+        .branding {
+            display: flex;
+            height: 100%;
+            align-items: center;
+            padding: 0 24px;
+            gap: 32px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            width: 112px;
+            height: 112px;
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+        }
+
+        .market-data {
+            flex: 1;
+            height: 100%;
+            overflow-x: auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .market-ticks {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            padding: 0 24px;
+        }
+
+        .market-tick {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 32px;
+            height: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .market-tick:last-child {
+            border-right: none;
+        }
+
+        .market-tick:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .market-tick-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .market-tick-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .market-tick-symbol {
+            font-size: 10px;
+            color: #71717a;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+
+        .market-tick:hover .market-tick-symbol {
+            color: rgba(245, 158, 11, 0.5);
+        }
+
+        .status-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            opacity: 0.4;
+            transition: opacity 0.3s;
+        }
+
+        .status-dot.up {
+            background: #10b981;
+        }
+
+        .status-dot.down {
+            background: #f43f5e;
+        }
+
+        .market-tick:hover .status-dot {
+            opacity: 1;
+        }
+
+        .market-tick-values {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .market-tick-price {
+            font-size: 14px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            color: white;
+        }
+
+        .market-tick-change {
+            font-size: 10px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .market-tick-change.up {
+            color: #10b981;
+        }
+
+        .market-tick-change.down {
+            color: #f43f5e;
+        }
+
+        .change-icon {
+            width: 10px;
+            height: 10px;
+        }
+
+        .content {
+            margin-top: 112px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot-large {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot-large.connected {
+            background: #10b981;
+        }
+
+        .status-dot-large.connecting {
+            background: #eab308;
+        }
+
+        .status-dot-large.disconnected {
+            background: #ef4444;
+        }
+
+        .loading {
+            color: #71717a;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="branding">
+            <div class="logo">SIGNAL</div>
+        </div>
+        
+        <div class="market-data">
+            <div class="market-ticks" id="marketTicks">
+                <div class="loading">Connecting to price feed...</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="content">
+        <div class="status-indicator">
+            <div class="status-dot-large" id="statusDot"></div>
+            <span id="statusText">connecting</span>
+        </div>
+        
+        <h1>Real-Time Price Header Integration</h1>
+        <p>Live market prices are now displayed in the header above.</p>
+        <p>Prices update every 2 seconds via WebSocket connection.</p>
+    </main>
+
+    <script>
+        const socket = io('http://localhost:4000', {
+            transports: ['websocket', 'polling']
+        });
+
+        const prices = {
+            'NIFTY 50': { price: 0, change: 0, percentage: 0 },
+            'SENSEX': { price: 0, change: 0, percentage: 0 },
+            'USD-INR': { price: 0, change: 0, percentage: 0 },
+            'INDIA VIX': { price: 0, change: 0, percentage: 0 }
+        };
+
+        function updateStatus(status) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusDot.className = `status-dot-large ${status}`;
+            statusText.textContent = status;
+        }
+
+        function formatPrice(price, instrument) {
+            if (price === 0) return '--';
+            
+            if (instrument === 'USD-INR') {
+                return price.toFixed(2);
+            }
+            return price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderMarketTicks() {
+            const marketTicks = document.getElementById('marketTicks');
+            
+            const html = `
+                <div class="market-tick">
+                    <div class="market-tick-content">
+                        <div class="market-tick-header">
+                            <span class="market-tick-symbol">NIFTY 50</span>
+                            <div class="status-dot ${prices['NIFTY 50'].change > 0 ? 'up' : 'down'}"></div>
+                        </div>
+                        <div class="market-tick-values">
+                            <span class="market-tick-price">${formatPrice(prices['NIFTY 50'].price, 'NIFTY 50')}</span>
+                            <span class="market-tick-change ${prices['NIFTY 50'].change > 0 ? 'up' : 'down'}">
+                                ${prices['NIFTY 50'].change > 0 ? '▲' : '▼'}
+                                ${Math.abs(prices['NIFTY 50'].percentage).toFixed(2)}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="market-tick">
+                    <div class="market-tick-content">
+                        <div class="market-tick-header">
+                            <span class="market-tick-symbol">SENSEX</span>
+                            <div class="status-dot ${prices['SENSEX'].change > 0 ? 'up' : 'down'}"></div>
+                        </div>
+                        <div class="market-tick-values">
+                            <span class="market-tick-price">${formatPrice(prices['SENSEX'].price, 'SENSEX')}</span>
+                            <span class="market-tick-change ${prices['SENSEX'].change > 0 ? 'up' : 'down'}">
+                                ${prices['SENSEX'].change > 0 ? '▲' : '▼'}
+                                ${Math.abs(prices['SENSEX'].percentage).toFixed(2)}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="market-tick">
+                    <div class="market-tick-content">
+                        <div class="market-tick-header">
+                            <span class="market-tick-symbol">USD INR</span>
+                            <div class="status-dot ${prices['USD-INR'].change > 0 ? 'up' : 'down'}"></div>
+                        </div>
+                        <div class="market-tick-values">
+                            <span class="market-tick-price">${formatPrice(prices['USD-INR'].price, 'USD-INR')}</span>
+                            <span class="market-tick-change ${prices['USD-INR'].change > 0 ? 'up' : 'down'}">
+                                ${prices['USD-INR'].change > 0 ? '▲' : '▼'}
+                                ${Math.abs(prices['USD-INR'].percentage).toFixed(2)}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="market-tick">
+                    <div class="market-tick-content">
+                        <div class="market-tick-header">
+                            <span class="market-tick-symbol">INDIA VIX</span>
+                            <div class="status-dot ${prices['INDIA VIX'].change > 0 ? 'up' : 'down'}"></div>
+                        </div>
+                        <div class="market-tick-values">
+                            <span class="market-tick-price">${formatPrice(prices['INDIA VIX'].price, 'INDIA VIX')}</span>
+                            <span class="market-tick-change ${prices['INDIA VIX'].change > 0 ? 'up' : 'down'}">
+                                ${prices['INDIA VIX'].change > 0 ? '▲' : '▼'}
+                                ${Math.abs(prices['INDIA VIX'].percentage).toFixed(2)}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            marketTicks.innerHTML = html;
+        }
+
+        socket.on('connect', () => {
+            console.log('Connected to price server');
+            updateStatus('connected');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from price server');
+            updateStatus('disconnected');
+        });
+
+        socket.on('price_update', (data) => {
+            console.log('Price update:', data);
+            prices[data.instrument] = {
+                price: data.price,
+                change: data.change.value,
+                percentage: data.change.percentage
+            };
+            renderMarketTicks();
+        });
+
+        // Fetch initial prices
+        async function fetchInitialPrices() {
+            try {
+                const response = await fetch('http://localhost:4000/api/v1/market/prices');
+                const data = await response.json();
+                if (data.success) {
+                    Object.keys(data.data.prices).forEach(instrument => {
+                        const priceData = data.data.prices[instrument];
+                        prices[instrument] = {
+                            price: priceData.price,
+                            change: priceData.change?.value || 0,
+                            percentage: priceData.change?.percentage || 0
+                        };
+                    });
+                    renderMarketTicks();
+                }
+            } catch (error) {
+                console.error('Failed to fetch initial prices:', error);
+            }
+        }
+
+        // Initial setup
+        updateStatus('connecting');
+        fetchInitialPrices();
+    </script>
+</body>
+</html>

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Activity, LayoutDashboard, TrendingUp as SignalIcon, Shield, Crown, Globe, Cpu } from 'lucide-react';
 import { PrimeLogo } from './PrimeLogo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import io, { Socket } from 'socket.io-client';
 
 const MarketTick = ({ symbol, value, change, isUp }: any) => (
   <div className="flex items-center gap-4 lg:gap-6 px-4 lg:px-8 last:border-none group cursor-pointer hover:bg-white/[0.02] transition-all duration-300 h-full shrink-0">
@@ -25,6 +26,74 @@ const MarketTick = ({ symbol, value, change, isUp }: any) => (
 
 export const MarketOverviewBar = ({ onMenuToggle, isMobileMenuOpen }: { onMenuToggle?: () => void, isMobileMenuOpen?: boolean }) => {
   const pathname = usePathname();
+  const [prices, setPrices] = useState({
+    'NIFTY 50': { price: 0, change: 0, percentage: 0 },
+    'SENSEX': { price: 0, change: 0, percentage: 0 },
+    'USD-INR': { price: 0, change: 0, percentage: 0 },
+    'INDIA VIX': { price: 0, change: 0, percentage: 0 }
+  });
+
+  useEffect(() => {
+    const socket: Socket = io('http://localhost:4000', {
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to price server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from price server');
+    });
+
+    socket.on('price_update', (data: { instrument: string; price: number; timestamp: string; change: { value: number; percentage: number } }) => {
+      setPrices(prev => ({
+        ...prev,
+        [data.instrument]: {
+          price: data.price,
+          change: data.change.value,
+          percentage: data.change.percentage
+        }
+      }));
+    });
+
+    // Fetch initial prices
+    const fetchInitialPrices = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/v1/market/prices');
+        const data = await response.json();
+        if (data.success) {
+          const initialPrices = {};
+          Object.keys(data.data.prices).forEach(instrument => {
+            const priceData = data.data.prices[instrument];
+            initialPrices[instrument] = {
+              price: priceData.price,
+              change: priceData.change?.value || 0,
+              percentage: priceData.change?.percentage || 0
+            };
+          });
+          setPrices(initialPrices);
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial prices:', error);
+      }
+    };
+
+    fetchInitialPrices();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const formatPrice = (price: number, instrument: string): string => {
+    if (price === 0) return '--';
+    
+    if (instrument === 'USD-INR') {
+      return price.toFixed(2);
+    }
+    return price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   return (
     <div className="fixed top-0 left-0 right-0 h-20 lg:h-28 bg-[#020617]/80 backdrop-blur-2xl border-b border-white/10 z-[70] flex items-center overflow-visible">
@@ -39,10 +108,30 @@ export const MarketOverviewBar = ({ onMenuToggle, isMobileMenuOpen }: { onMenuTo
       {/* 📊 GLOBAL DATA STREAM (Center) */}
       <div className="flex items-center h-full flex-1 overflow-x-auto no-scrollbar scroll-smooth">
         <div className="flex items-center h-full px-2 lg:px-6">
-           <MarketTick symbol="NIFTY 50" value="22,514.20" change="0.42" isUp />
-           <MarketTick symbol="SENSEX" value="74,248.10" change="0.12" isUp />
-           <MarketTick symbol="USD INR" value="83.42" change="0.05" isUp={false} />
-           <MarketTick symbol="INDIA VIX" value="12.42" change="1.25" isUp={false} />
+           <MarketTick 
+             symbol="NIFTY 50" 
+             value={formatPrice(prices['NIFTY 50'].price, 'NIFTY 50')} 
+             change={Math.abs(prices['NIFTY 50'].percentage).toFixed(2)} 
+             isUp={prices['NIFTY 50'].change > 0} 
+           />
+           <MarketTick 
+             symbol="SENSEX" 
+             value={formatPrice(prices['SENSEX'].price, 'SENSEX')} 
+             change={Math.abs(prices['SENSEX'].percentage).toFixed(2)} 
+             isUp={prices['SENSEX'].change > 0} 
+           />
+           <MarketTick 
+             symbol="USD INR" 
+             value={formatPrice(prices['USD-INR'].price, 'USD-INR')} 
+             change={Math.abs(prices['USD-INR'].percentage).toFixed(2)} 
+             isUp={prices['USD-INR'].change > 0} 
+           />
+           <MarketTick 
+             symbol="INDIA VIX" 
+             value={formatPrice(prices['INDIA VIX'].price, 'INDIA VIX')} 
+             change={Math.abs(prices['INDIA VIX'].percentage).toFixed(2)} 
+             isUp={prices['INDIA VIX'].change > 0} 
+           />
         </div>
       </div>
 
